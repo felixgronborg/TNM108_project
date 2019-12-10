@@ -1,10 +1,3 @@
-from textblob import TextBlob
-from keras.layers.core import Dense, Activation, Dropout
-from keras.layers.recurrent import LSTM
-from keras.models import Sequential
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-
 import tweepy
 import math
 import csv
@@ -13,69 +6,170 @@ import sys
 import jsonpickle
 import os
 import io
-import numpy as np
-<<<<<<< HEAD
-import pandas as pd
 import time
-import pandas_datareader as dr
-import matplotlib.pyplot as plt
-import yfinance as yf
-#from scale_data import preprocess_data
-
-=======
+import numpy as np
 import pandas as pd 
 import pandas_datareader as dr 
 import matplotlib.pyplot as plt
 import yfinance as yf
-#from textblob import TextBlob
 from datetime import date
 from pandas.plotting import register_matplotlib_converters
+from textblob import TextBlob
+#from keras.layers.core import Dense, Activation, Dropout
+#from keras.layers.recurrent import LSTM
 #from keras.models import Sequential
-#from keras.layers import Dense
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from tweepy import Stream
+from tweepy import API
+from tweepy import Cursor
+from tweepy.streaming import StreamListener
+from tweepy import OAuthHandler
+
+import twitter_credentials
+
+# # # # TWITTER CLIENT # # # #
+class TwitterClient():
+    def __init__(self, twitter_user=None):
+        self.auth = TwitterAuthenticator().authenticate_twitter_api()
+        self.twitter_client = API(self.auth)
+        self.twitter_user = twitter_user
+
+    def get_twitter_client_api(self):
+        return self.twitter_client
+    
+    def get_user_timeline_tweets(self, num_tweets):
+        tweets = []
+        for tweet in Cursor(self.twitter_client.user_timeline, id=self.twitter_user).items(num_tweets):
+            tweets.append(tweet)
+        return tweets
+    
+    def download_tweets(self, query="*", max_tweets = 500, geocode="49.895077,-97.138451,2000mi", count=100, since_id=7250759366):
+        tweets = []
+        last_id = -1
+        filename = 'tweets.txt' # We'll store the tweets in a text file.
+        max_id = -1
+        tweetCount = 0
+        print("Downloading max {0} tweets".format(max_tweets))
+        with io.open(filename, 'w', encoding="utf-8") as f:
+            while tweetCount < max_tweets:
+                try:
+                    if (max_id <= 0):
+                        new_tweets = self.twitter_client.search(q=query, geocode="49.895077,-97.138451,2000mi", count=count, since_id=since_id)
+                    else:
+                        new_tweets = self.twitter_client.search(q=query, count=count, geocode="49.895077,-97.138451,2000mi", max_id=str(max_id - 1), since_id=since_id)
+                    if not new_tweets:
+                        print("No more tweets found")
+                        break
+                    for tweet in new_tweets:
+                        tweets.append(tweet)
+                        f.write(jsonpickle.encode(tweet._json, unpicklable=False) + '\n\n')
+                    tweetCount += len(new_tweets)
+                    print("Downloaded {0} tweets".format(tweetCount))
+                    max_id = new_tweets[-1].id
+                except tweepy.TweepError as e:
+                    # Just exit if any error
+                    print("some error : " + str(e))
+                    break
+
+        print ("Downloaded {0} tweets, Saved to {1}".format(tweetCount, filename))
+        return tweets
+
+# # # # TWITTER AUTHENTICATOR # # # #
+class TwitterAuthenticator():
+    """
+    Class for handling authentication
+    """
+    def authenticate_twitter_api(self):
+        auth = OAuthHandler(twitter_credentials.CONSUMER_KEY, twitter_credentials.CONSUMER_SECRET)
+        auth.set_access_token(twitter_credentials.ACCESS_TOKEN, twitter_credentials.ACCESS_TOKEN_SECRET)
+        return auth
+        
+# # # # TWITTER STREAMER # # # # 
+class TwitterStreamer():
+    """
+    Class for streaming and processing live tweets
+    """
+    def __init__(self):
+        self.twitter_authenticator = TwitterAuthenticator()
+
+    def stream_tweets(self, filename, keyword):
+        # This handles Twitter authentication and the connection to Twitter Streaming API
+        listener = TwitterListener(filename)
+        auth = self.twitter_authenticator.authenticate_twitter_api()
+        stream = Stream(auth, listener)
+
+        # api = API(auth)
+
+        stream.filter(track=keyword)
+
+# # # # TWITTER STREAM LISTENER # # # #
+class TwitterListener(StreamListener):
+    """
+    This is a basic listener that just prints received tweets to stdout
+    """
+    def __init__(self, filename):
+        self.filename = filename
+
+    def on_data(self, data):
+        try:
+            print(data)
+            with open(self.filename, 'w') as tf:
+                tf.write(data)
+            return True
+        except BaseException as e:
+            print("Error on_data %s" % str(e))
+        return True
+    
+    def on_error(self, status):
+        if status == 420:
+            # Returning False on_data method in case rate limit occurs
+            return False
+        print(status)
+
+class TweetAnalyzer():
+    """
+    Functionality for analyzing and categorizing content from tweets
+    """
+    def clean_text(self, text):
+        a = text
+        b = ",.!?"
+        for char in b:
+            a = a.replace(char,"")
+        return a
+
+    def tweets_to_data_frame(self, tweets):
+        df = pd.DataFrame(data=[tweet.text for tweet in tweets], columns=['Tweets'])
+
+        df['date'] = np.array([tweet.created_at for tweet in tweets])
+        df['id'] = np.array([tweet.id_str for tweet in tweets])
+
+        return df
 
 # 7250759366 is The first tweet 01-01-10 with the hashtag #newyear2010
-def download_tweets(query="*", max_tweets = 500, geocode="49.895077,-97.138451,2000mi", count=100, since_id=7250759366):
-    public_tweets = []
-    last_id = -1
-    fName = 'tweets.txt' # We'll store the tweets in a text file.
-    max_id = -1
-    tweetCount = 0
-    print("Downloading max {0} tweets".format(max_tweets))
-    with io.open(fName, 'w', encoding="utf-8") as f:
-        while tweetCount < max_tweets:
-            try:
-                if (max_id <= 0):
-                    new_tweets = api.search(q=query, geocode="49.895077,-97.138451,2000mi", count=count, since_id=since_id)
-                else:
-                    new_tweets = api.search(q=query, count=count, geocode="49.895077,-97.138451,2000mi", max_id=str(max_id - 1), since_id=since_id)
-                if not new_tweets:
-                    print("No more tweets found")
-                    break
-                for tweet in new_tweets:
-                    f.write(jsonpickle.encode(tweet._json, unpicklable=False) + '\n\n')
-                tweetCount += len(new_tweets)
-                print("Downloaded {0} tweets".format(tweetCount))
-                max_id = new_tweets[-1].id
-            except tweepy.TweepError as e:
-                # Just exit if any error
-                print("some error : " + str(e))
-                break
 
-    print ("Downloaded {0} tweets, Saved to {1}".format(tweetCount, fName))
-    return
->>>>>>> 497cc064df9c64300d60011fafe0c87f9d490f76
+keyword = "tesla"
+filename = "tweets.txt"
+twitter_client = TwitterClient()
+tweet_analyzer = TweetAnalyzer()
+api = twitter_client.get_twitter_client_api()
 
-#Step 1 - Insert your API keys
-consumer_key = open("../consumer_key.txt","r").read()
-consumer_secret = open("../consumer_secret.txt","r").read()
-access_token = open("../access_token.txt","r").read()
-access_token_secret = open("../access_token_secret.txt","r").read()
 
-#Step 1.1 Authentication(?)
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-auth.set_access_token(access_token, access_token_secret)
-api = tweepy.API(auth)
+tweets = twitter_client.download_tweets(query=keyword, max_tweets=500)
+for tweet in tweets:
+    tweet.text = tweet_analyzer.clean_text(tweet.text)
+tweets_df = tweet_analyzer.tweets_to_data_frame(tweets)
+tweets_df.to_csv('tweets_df.csv', sep='\t', encoding='utf-8', index=False)
+"""
+OR
+"""
+tweets_df = pd.read_csv("tweets_df.csv", error_bad_lines=False, sep='\t')
 
+
+print(tweets_df.info())
+print(tweets_df.index)
+
+"""
 #Step 2 - Import company stock data
 data1 = dr.get_data_yahoo('AAPL', '2010-01-01', date.today(), interval="d") # Apple
 data2 = dr.get_data_yahoo('NSRGY', '2010-01-01', date.today(), interval="d") # Nestlé
@@ -90,9 +184,6 @@ plt.legend()
 plt.grid()
 #plt.show() #Comment if not used
 
-#download_tweets('nestle') #UNCOMMENT TO DOWNLOAD TWEETS
-
-<<<<<<< HEAD
 #Volume
 # plt.figure()
 # plt.plot(data1["Volume"])
@@ -100,7 +191,6 @@ plt.grid()
 # plt.ylabel('Volume')
 # plt.xlabel('Days')
 # plt.show()
-
 
 # Step 4 - Preprocessing of data
 training_set = data1.iloc[:,2:3].values
@@ -185,8 +275,7 @@ plt.xlabel('Time')
 plt.ylabel('Google Stock Price')
 plt.legend()
 plt.show()
-=======
-
+"""
 #contributors  -
 #coordinates  - 
 #created_at  + 
@@ -225,4 +314,3 @@ plt.show()
 #       massa annan skit  -
 #source  -
 #text  +
->>>>>>> 497cc064df9c64300d60011fafe0c87f9d490f76

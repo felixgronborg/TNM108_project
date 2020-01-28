@@ -15,6 +15,8 @@ import yfinance as yf
 from datetime import date
 from pandas.plotting import register_matplotlib_converters
 from textblob import TextBlob
+from bs4 import BeautifulSoup
+from html import unescape
 #from keras.layers.core import Dense, Activation, Dropout
 #from keras.layers.recurrent import LSTM
 #from keras.models import Sequential
@@ -38,13 +40,13 @@ class TwitterClient():
     def get_twitter_client_api(self):
         return self.twitter_client
     
-    def get_user_timeline_tweets(self, num_tweets):
+    def get_user_timeline_tweets(self, max_num_tweets=5000, since='2010-01-01 00:00:01', until=date.today()):
         tweets = []
-        for tweet in Cursor(self.twitter_client.user_timeline, id=self.twitter_user).items(num_tweets):
+        for tweet in Cursor(self.twitter_client.user_timeline, id=self.twitter_user).items():
             tweets.append(tweet)
         return tweets
     
-    def download_tweets(self, query="*", max_tweets = 500, geocode="49.895077,-97.138451,2000mi", count=100, since_id=7250759366):
+    def download_tweets(self, query="*", max_tweets=500, geocode="49.895077,-97.138451,2000mi", count=100, since_id=7250759366):
         tweets = []
         last_id = -1
         filename = 'tweets.txt' # We'll store the tweets in a text file.
@@ -133,7 +135,9 @@ class TweetAnalyzer():
     """
     def clean_text(self, text):
         a = text
-        b = ",.!?"
+        b = ",.!?;"
+        c = "&"
+
         for char in b:
             a = a.replace(char,"")
         return a
@@ -147,27 +151,28 @@ class TweetAnalyzer():
         return df
 
 # 7250759366 is The first tweet 01-01-10 with the hashtag #newyear2010
-
 keyword = "tesla"
+
 filename = "tweets.txt"
-twitter_client = TwitterClient()
+
+twitter_client = TwitterClient(twitter_user='realDonaldTrump')
 tweet_analyzer = TweetAnalyzer()
 api = twitter_client.get_twitter_client_api()
 
+tweets = twitter_client.get_user_timeline_tweets()
 
-tweets = twitter_client.download_tweets(query=keyword, max_tweets=500)
+#tweets = twitter_client.download_tweets(query=keyword, max_tweets=500)
 for tweet in tweets:
     tweet.text = tweet_analyzer.clean_text(tweet.text)
 tweets_df = tweet_analyzer.tweets_to_data_frame(tweets)
 tweets_df.to_csv('tweets_df.csv', sep='\t', encoding='utf-8', index=False)
-"""
-OR
-"""
-tweets_df = pd.read_csv("tweets_df.csv", error_bad_lines=False, sep='\t')
+
+# OR
+
+#tweets_df = pd.read_csv("tweets_df.csv", error_bad_lines=False, sep='\t')
 
 
 print(tweets_df.info())
-print(tweets_df.index)
 
 """
 #Step 2 - Import company stock data

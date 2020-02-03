@@ -34,23 +34,29 @@ import twitter_credentials
 class TwitterClient():
     def __init__(self, twitter_user=None):
         self.auth = TwitterAuthenticator().authenticate_twitter_api()
-        self.twitter_client = API(self.auth)
+        self.twitter_client = API(self.auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
         self.twitter_user = twitter_user
 
     def get_twitter_client_api(self):
         return self.twitter_client
     
-    def get_user_timeline_tweets(self, max_num_tweets=5000, since='2010-01-01 00:00:01', until=date.today()):
+    def get_user_timeline_tweets(self, max_num_tweets=5000, since='2010-01-01 00:00:01'):
         tweets = []
         for tweet in Cursor(self.twitter_client.user_timeline, id=self.twitter_user).items():
             tweets.append(tweet)
         return tweets
-    
-    def download_tweets(self, query="*", max_tweets=500, geocode="49.895077,-97.138451,2000mi", count=100, since_id=7250759366):
+    def get_api_search_tweets(self, query='*', max_num_tweets=500, startDate='2010-01-01 00:00:01'):
+        tweets= []
+        for tweet in Cursor(self.twitter_client.search, q=query, count=20,lang="en",since=startDate, tweet_mode='extended').items():
+            tweets.append(tweet)
+        return tweets
+
+    def download_tweets(self, query="*", max_tweets=500, geocode="49.895077,-97.138451,2000mi", count=100, since_id=7250759366):  
+        # 7250759366 is The first tweet 01-01-10 with the hashtag #newyear2010
         tweets = []
         last_id = -1
         filename = 'tweets.txt' # We'll store the tweets in a text file.
-        max_id = -1
+        max_id = -1 #Latest tweets
         tweetCount = 0
         print("Downloading max {0} tweets".format(max_tweets))
         with io.open(filename, 'w', encoding="utf-8") as f:
@@ -59,14 +65,15 @@ class TwitterClient():
                     if (max_id <= 0):
                         new_tweets = self.twitter_client.search(q=query, geocode="49.895077,-97.138451,2000mi", count=count, since_id=since_id)
                     else:
-                        new_tweets = self.twitter_client.search(q=query, count=count, geocode="49.895077,-97.138451,2000mi", max_id=str(max_id - 1), since_id=since_id)
+                        new_tweets = self.twitter_client.search(q=query, geocode="49.895077,-97.138451,2000mi", count=count, max_id=str(max_id - 1), since_id=since_id)
                     if not new_tweets:
                         print("No more tweets found")
                         break
                     for tweet in new_tweets:
-                        tweets.append(tweet)
-                        f.write(jsonpickle.encode(tweet._json, unpicklable=False) + '\n\n')
-                    tweetCount += len(new_tweets)
+                        if (not tweet.retweeted) and ('RT @' not in tweet.text):
+                            tweets.append(tweet)
+                            f.write(jsonpickle.encode(tweet._json, unpicklable=False) + '\n\n')
+                    tweetCount = len(tweets)
                     print("Downloaded {0} tweets".format(tweetCount))
                     max_id = new_tweets[-1].id
                 except tweepy.TweepError as e:
@@ -139,7 +146,10 @@ class TweetAnalyzer():
         c = "&"
 
         for char in b:
-            a = a.replace(char,"")
+            if char==c:
+                a = a.replace(char,"and")
+            else:
+                a = a.replace(char,"")
         return a
 
     def tweets_to_data_frame(self, tweets):
@@ -147,11 +157,13 @@ class TweetAnalyzer():
 
         df['date'] = np.array([tweet.created_at for tweet in tweets])
         df['id'] = np.array([tweet.id_str for tweet in tweets])
+        #df['likes'] = np.array([tweet.likes for tweet in tweets])
+        df['retweets'] = np.array([tweet.retweet_count for tweet in tweets])
+        df['favorites'] = np.array([tweet.favorite_count for tweet in tweets])
 
         return df
 
-# 7250759366 is The first tweet 01-01-10 with the hashtag #newyear2010
-keyword = "tesla"
+keyword = "*"
 
 filename = "tweets.txt"
 
@@ -159,12 +171,15 @@ twitter_client = TwitterClient(twitter_user='realDonaldTrump')
 tweet_analyzer = TweetAnalyzer()
 api = twitter_client.get_twitter_client_api()
 
-tweets = twitter_client.get_user_timeline_tweets()
-
+#tweets = twitter_client.get_user_timeline_tweets()
+tweets = twitter_client.get_api_search_tweets()
 #tweets = twitter_client.download_tweets(query=keyword, max_tweets=500)
+
+
 for tweet in tweets:
     tweet.text = tweet_analyzer.clean_text(tweet.text)
 tweets_df = tweet_analyzer.tweets_to_data_frame(tweets)
+
 tweets_df.to_csv('tweets_df.csv', sep='\t', encoding='utf-8', index=False)
 
 # OR

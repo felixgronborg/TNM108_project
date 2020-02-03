@@ -12,7 +12,6 @@ from datetime import date
 
 import twitter_credentials
 
-
 # # # # TWITTER AUTHENTICATOR # # # #
 class TwitterAuthenticator():
     """
@@ -67,26 +66,23 @@ class TweetAnalyzer():
 tweet_analyzer = TweetAnalyzer()
 
 ##### Donald Trump #####
-startDate = datetime.datetime(2017, 1, 20, 0, 0 ,0)
-endDate = datetime.datetime(2021, 1, 1, 0, 0 ,0)
-twitter_client = TwitterClient(twitter_user='realDonaldTrump')
-tweets = twitter_client.get_user_timeline_tweets(startDate)
-for tweet in tweets:
-    tweet.full_text = tweet_analyzer.clean_text(tweet.full_text)
-tweets_df = tweet_analyzer.tweets_to_data_frame(tweets)
-tweets_df.to_csv('dtrump.csv', sep='\t', encoding='utf-8', index=False)
+# startDate = datetime.datetime(2017, 1, 20, 0, 0 ,0)
+# endDate = datetime.datetime(2021, 1, 1, 0, 0 ,0)
+# twitter_client = TwitterClient(twitter_user='POTUS')
+# tweets = twitter_client.get_user_timeline_tweets(startDate)
+# for tweet in tweets:
+#     tweet.full_text = tweet_analyzer.clean_text(tweet.full_text)
+# tweets_df = tweet_analyzer.tweets_to_data_frame(tweets)
+# tweets_df.to_csv('potus.csv', sep='\t', encoding='utf-8', index=False)
 ##### Donald Trump #####
-
 
 ##### Barack Obama #####
 startDate = datetime.datetime(2009, 1, 20, 0, 0 ,0)
-endDate = datetime.datetime(2017, 1, 20, 0, 0 ,0)
+endDate = datetime.datetime(2014, 10, 10, 13, 17 ,0)
 twitter_client = TwitterClient(twitter_user='BarackObama')
 tweets = twitter_client.get_user_timeline_tweets(startDate,endDate)
 for tweet in tweets:
     tweet.full_text = tweet_analyzer.clean_text(tweet.full_text)
 tweets_df = tweet_analyzer.tweets_to_data_frame(tweets)
-tweets_df.to_csv('bobama.csv', sep='\t', encoding='utf-8', index=False)
+tweets_df.to_csv('bobama2.csv', sep='\t', encoding='utf-8', index=False)
 ##### Barack Obama #####
-
-

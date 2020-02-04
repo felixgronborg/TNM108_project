@@ -53,11 +53,10 @@ class TweetAnalyzer():
         return a
 
     def tweets_to_data_frame(self, tweets):
-        df = pd.DataFrame(data=[tweet.full_text for tweet in tweets], columns=['Tweets'])
+        df = pd.DataFrame(data=[tweet.full_text for tweet in tweets], columns=['text'])
 
         df['date'] = np.array([tweet.created_at for tweet in tweets])
         df['id'] = np.array([tweet.id_str for tweet in tweets])
-        #df['likes'] = np.array([tweet.likes for tweet in tweets])
         df['retweets'] = np.array([tweet.retweet_count for tweet in tweets])
         df['favorites'] = np.array([tweet.favorite_count for tweet in tweets])
 
@@ -84,5 +83,5 @@ tweets = twitter_client.get_user_timeline_tweets(startDate,endDate)
 for tweet in tweets:
     tweet.full_text = tweet_analyzer.clean_text(tweet.full_text)
 tweets_df = tweet_analyzer.tweets_to_data_frame(tweets)
-tweets_df.to_csv('bobama2.csv', sep='\t', encoding='utf-8', index=False)
+tweets_df.to_csv('obama.csv', sep='\t', encoding='utf-8', index=False)
 ##### Barack Obama #####

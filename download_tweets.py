@@ -32,8 +32,8 @@ class TwitterClient():
     def get_user_timeline_tweets(self, startDate=datetime.datetime(1,1,1,0,0), endDate=datetime.datetime(9999,1,1,0,0)):
         tweets = []
         for tweet in Cursor(self.twitter_client.user_timeline, id=self.twitter_user, tweet_mode='extended').items():
-            if (not tweet.retweeted) and ('RT @' not in tweet.full_text) and (tweet.created_at < endDate) and (tweet.created_at > startDate):
-                            tweets.append(tweet)
+            if (not tweet.retweeted) and ('RT' not in tweet.full_text) and (tweet.created_at < endDate) and (tweet.created_at > startDate):
+                tweets.append(tweet)
         return tweets
 
 class TweetAnalyzer():
@@ -78,7 +78,7 @@ tweet_analyzer = TweetAnalyzer()
 
 ##### Barack Obama #####
 startDate = datetime.datetime(2009, 1, 20, 0, 0 ,0)
-endDate = datetime.datetime(2014, 10, 10, 13, 17 ,0)
+endDate = datetime.datetime(2017, 1, 20, 0, 0 ,0)
 twitter_client = TwitterClient(twitter_user='BarackObama')
 tweets = twitter_client.get_user_timeline_tweets(startDate,endDate)
 for tweet in tweets:
